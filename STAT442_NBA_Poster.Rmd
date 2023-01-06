@@ -1,0 +1,373 @@
+---
+main_topsize: 0.15 #percent coverage of the poster
+main_bottomsize: 0.08
+primary_colour: "#1d428a"
+secondary_colour: "#3779fa"
+accent_colour:
+#ESSENTIALS
+title: '**Data Visualizations for NBA Analytics**'
+title_textsize: 85pt
+author:
+  - name: '**Jiang Wei(David) Liu**'
+    main: true
+    email: jw8liu@uwaterloo.ca
+affiliation:
+    address: STAT442 - Visualization, University of Waterloo
+main_findings:
+  - "**Visualization** over **2021-22 NBA season** with **Tidyverse** + **Huxable**."
+logocenter_name: NBA-Logo.png
+output: 
+  posterdown::posterdown_betterport:
+    self_contained: TRUE
+    pandoc_args: --mathjax
+    number_sections: false
+
+knit: pagedown::chrome_print
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      tidy = FALSE,
+                      message = FALSE,
+                      fig.align = 'center',
+                      out.width = "100%")
+options(knitr.table.format = "html")
+```
+
+
+```{r, include=FALSE}
+knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
+```
+
+```{r, echo=FALSE, warning=FALSE}
+library(tidyverse)
+library(png)
+library(ggpubr)
+library(grid)
+library(fmsb)
+library(huxtable)
+library(RCurl)
+```
+
+```{css, echo=FALSE}
+.mybreak {
+   break-before: column;
+}
+```
+
+```{r, warning=FALSE}
+# Import dataset and image
+pbp <- read_csv("NBA_Playbyplay_2021-22.csv", show_col_types = FALSE)
+pbox <- read.csv("NBA_Player_Boxscore_2021-22.csv")
+tbox <- read.csv("NBA_Team_Boxscore_2021-22.csv")
+bball_court <- readPNG("bball_court.png")
+```
+
+# Shot Attempts Heat Map
+
+## 2D Continuous Element
+
+The new generation players like Trae Young are shooting more **three-pointers** than ever, while the last **mid-range** master DeMar DeRozan scores most of his points inside the three point line.
+
+```{r, echo=FALSE, warning=FALSE}
+# Data Cleaning
+trae <- pbp %>%
+  filter(participants_0_athlete_id == 4277905) %>%
+  filter(shooting_play == TRUE) %>%
+  filter(coordinate_x > 0)
+
+# Get Trae headshot pic
+trae_pic <- readPNG(getURLContent(unique(filter(pbox, athlete_id == 4277905)$athlete_headshot_href)))
+
+# Graph the heat map plot
+trae_hm <- ggplot(data = trae, aes(coordinate_x, coordinate_y)) +
+  labs(x="Baseline (ft)", y="Sideline (ft)",
+       title = "Trae Yound (Ice Trae)",
+       subtitle = "2021-22 Field Goal Attemps Heatmap") +
+  # Add a basketabll court as the background image
+  background_image(bball_court) +
+  # Geom_count is Geom_point but size changes with frequency
+  geom_count(color = "blue", alpha=0.6) +
+  #adjust the scales
+  scale_size_continuous(range = c(0.1, 4),
+                        breaks = c(1,10,30),
+                        name = "Number of Attempts",
+                        ) +
+  
+  # Add a transparent layer of contour plot
+  stat_density2d_filled(alpha = 0.45, 
+                        contour_var = "count",
+                        breaks = c(0,0.035,0.5,1.5,3,6,10),
+                        show.legend = FALSE) +
+  scale_fill_manual(values = c("#ffffff", "#cce1ff", "#99c3ff", 
+                               "#66a6ff", "#3388ff", "#006aff")) +
+  scale_x_continuous(expand = c(0, 0)) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0,60)) +
+  # make x and y 1-to-1
+  coord_equal() +
+  # Add a Trae headshot pic on the top left corner
+  annotation_custom(rasterGrob(trae_pic), xmin = 0, xmax = 20, 
+                    ymin = 42, ymax = 62)
+
+trae_hm
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Data Cleaning
+trae <- pbp %>%
+  filter(participants_0_athlete_id == 3978) %>%
+  filter(shooting_play == TRUE) %>%
+  filter(coordinate_x > 0)
+
+# Get Trae headshot pic
+trae_pic <- readPNG(getURLContent(unique(filter(pbox, athlete_id == 3978)$athlete_headshot_href)))
+
+# Graph the plot
+trae_hm <- ggplot(data = trae, aes(coordinate_x, coordinate_y)) +
+  labs(x="Baseline (ft)", y="Sideline (ft)",
+       title = "DeMar DeRozan",
+       subtitle = "2021-22 Field Goal Attemps Heatmap") +
+  # Add a basketabll court as the background image
+  background_image(bball_court) +
+  # Geom_count is Geom_point but size changes with frequency
+  geom_count(color = "red", alpha=0.6) +
+  #adjust the scales
+  scale_size_continuous(range = c(0.1, 4),
+                        breaks = c(1,10,30),
+                        name = "Number of Attempts",
+                        ) +
+  
+  # Add a transparent layer of contour plot
+  stat_density2d_filled(alpha = 0.45, 
+                        contour_var = "count",
+                        breaks = c(0,0.035,0.5,1.5,3,6,10),
+                        show.legend = FALSE) +
+  scale_fill_manual(values = c("#FFFFFF","#fff6c5", "#ffb994", 
+                               "#ff7b63", "#ff3e31", "#ff0000")) +
+  scale_x_continuous(expand = c(0, 0)) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0,60)) +
+  # make x and y 1-to-1
+  coord_equal() +
+  # Add a Trae headshot pic on the top left corner
+  annotation_custom(rasterGrob(trae_pic), xmin = 0, xmax = 20, 
+                    ymin = 42, ymax = 62)
+
+trae_hm
+```
+
+Both the width and length of the plots are **continuous** variables, the contour plot is also interpolated using the location and frequency of the data points to display the plays' unique favorite areas to attack.
+
+
+
+# Top 9 players in MVP voting {.mybreak}
+
+## Categorical Element (Facet)
+
+There are tons of new faces in the **MVP ladder**, players like Luka Doncic, Ja Morant, and the Joker are all dominating the league in their own way. 
+
+```{r, echo=FALSE, class.source="mybreak"}
+# Data Cleaning
+mvp_top5 <- pbox %>%
+  # filter out the all-star game
+  filter(!team_short_display_name %in% c("Team Durant","Team LeBron")) %>%
+  #filter out the playeroffs 
+  filter(season_type == 2) %>%
+  filter(athlete_id %in% c("3112335","3059318","3032977",
+                           "3136193","3945274","4065648",
+                           "4279888","3975","2779")) %>%
+  separate(fg, c("fgm","fga"), "-") %>%
+  select(athlete_display_name, pts, fgm,fga, reb, ast, stl, blk, to, athlete_headshot_href) %>%
+  group_by(athlete_display_name) %>%
+  # Get the per-game statistics
+  summarise(Point = sum(pts)/n(),
+            Rebound = sum(reb)/n(),
+            Assist = sum(ast)/n(),
+            Steal = sum(stl)/n(),
+            Block = sum(blk)/n(),
+            #Turnover = sum(to)/n(),
+            Percentage = sum(as.numeric(fgm)) / sum(as.numeric(fga)),
+            pic = max(athlete_headshot_href)
+  ) %>%
+  
+  # Sorting using order of MVP voting
+  arrange(match(athlete_display_name, c("Nikola Jokic",
+                                        "Joel Embiid",
+                                        "Giannis Antetokounmpo",
+                                        "Devin Booker",
+                                        "Luka Doncic",
+                                        "Jayson Tatum",
+                                        "Ja Morant",
+                                        "Stephen Curry",
+                                        "Chris Paul"))) %>%
+  remove_rownames %>% 
+  column_to_rownames(var="athlete_display_name")
+
+# Use the team color as the color of the radar plot, 
+# the color in the dataset is not accurate
+team_color <- c("FEC524", "006BB6", "003813",
+                "E56020","00538C","007A33",
+                "5D76A9","FFC72C","E56020")
+max_min_mean <- data.frame(
+  Point = c(max(mvp_top5$Point), 0,8), 
+  Rebound = c(max(mvp_top5$Rebound),0, 4), 
+  Assist = c(max(mvp_top5$Assist), 0,2), 
+  Steal = c(max(mvp_top5$Steal), 0,0.5), 
+  Block = c(max(mvp_top5$Block), 0,0.2), 
+  #Turnover = c(0, max(mvp_top5$Turnover)), 
+  Percentage = c(max(mvp_top5$Percentage), 0.35,0.45)
+)
+
+rownames(max_min_mean) <- c("Max", "Min", "Average")
+
+mvp_top5_final <- rbind(max_min_mean, mvp_top5[,c(1:6)])
+
+# Function to create a radarchart
+create_radarchart <- function(data, color,
+                              vlabels = colnames(data), 
+                              vlcex = 0.7,
+                              title = NULL, ...){
+  radarchart(
+    data,
+    pcol = c(NA,color), 
+    pfcol = c("#00000090",scales::alpha(color, 0.5)), 
+    plwd = 2, plty = 1,
+    cglcol = "grey", cglty = 1, cglwd = 0.8,
+    axislabcol = "grey",
+    vlcex = vlcex, vlabels = vlabels,
+    title = title, ...
+  )
+}
+
+# set up the layour for the 9 radar graphs
+par(mar=c(1,1,1,1))
+layout(matrix(c(1,2,5,8,1,3,6,9,1,4,7,10),ncol=3),
+       heights=c(1,3,3,3))
+plot.new()
+text(0.5,0.5,"2021-22 MVP Ladder Radar Graphs",cex=2,font=2)
+
+# Create the radar chart
+for(i in 1:9){
+  create_radarchart(
+    data = mvp_top5_final[c(1,2,3, i+3), ],
+    color = paste0("#", team_color[i]),
+    title = paste0(i,". ",rownames(mvp_top5_final[i+3,]))
+    )
+}
+```
+
+The radar graphs are faceted by players, and the grey area in each plot is the average statistics for all NBA players.
+
+
+# Score Plot for a NBA game
+
+## Homebrewed
+
+```{r, echo=FALSE, out.width="90%"}
+# Homebrewed graph
+
+# Data Cleaning
+come_back <- pbp %>%
+  filter(game_id == "401360535") %>%
+  filter(scoring_play == TRUE) %>%
+  mutate(scored_side = ifelse(team_id == home_team_id, "home", "away")) %>%
+  select(home_score,away_score,scored_side) %>%
+  arrange(home_score,away_score) %>%
+  mutate(next_score_side = lead(scored_side,1)) %>%
+  replace(is.na(.), "not_anything") %>%
+  filter((scored_side != next_score_side)) %>%
+  mutate(last_home_score = lag(home_score,1),
+         last_away_score = lag(away_score,1)) %>%
+  replace(is.na(.), 0)
+
+# Set up the empty graph
+par(mai = c(0.2,0.2,0.2,0.2))
+plot(0, 0, type="n",
+     xlim = c(0, 150),
+     ylim = c(0, 100),
+     axes=FALSE, xlab="",ylab="",main="", asp = 1)
+
+# Draw triangles for each block of scoring
+for (i in seq(nrow(come_back))){
+  if(i%%2 == 1){
+    polygon(x=come_back[i,c(5,1,6,5)]+14, y=c(75,75,25,75), col="#002B5C", border="black", lwd=1)
+  } else {
+    polygon(x=come_back[i,c(6,2,5,6)]+14, y=c(25,25,75,25), col="#C8102E", border="black", lwd=1)
+  }
+}
+
+# indicate the winner
+win_x = max(max(come_back$home_score),max(come_back$away_score))
+lines(x = c(win_x+14.4,win_x+14.4), y = c(20,80), col="red", lty = 2, lwd=2)
+if(come_back[nrow(come_back),3] == "away"){
+  win_text_y = 25
+} else {
+  win_text_y = 75
+}
+
+# Add title/subtitle and labels
+text(x=win_x+28, y=win_text_y+1, labels="Winner!!",col="red",cex = 1.5)
+text(x=5, y=26, labels="Los Angeles \n Clippers",cex = 0.8)
+text(x=5, y=75, labels="Washington \n Wizards", cex=0.8)
+text(x=60, y=20, labels="Score")
+text(x=46, y=78, labels="Clippers vs Wizards, Jan 25. 2022")
+text(x=68, y=85, labels="Second Largest Comeback in NBA history",cex=1.4)
+```
+
+The graph above is created using R default **polygons** and **lines**. The horizontal axis represents the score for each team, with the bottom edge representing Clipper's score and the top edge representing Wizard's score. The lines between the top and bottom edges represent an instant of the game. The location where those lines connect with the top and bottom edge is the score for each team at that instant respectively. The polygons are colored with the teams' team color, the dark blue polygons represent a period of time when the Wizards are scoring, and the red polygons represent the period when the clippers are scoring. 
+
+I didn't add any value on the edges because I believe that would add too many numbers and might confuse the audience, the purpose of this graph is to display which team was ahead at each period and the process of the game.
+
+# Teams' Scoring Duo {.mybreak}
+
+## Wildcard
+
+The age of Big Threes is over now, more and more teams are aiming for only **2 core/stars** in their lineup. Lets check out the scoring duos of each team!
+
+```{r myprettycode, echo=FALSE, fig.cap='Table', fig.height=6, out.width="80%", class.source="mybreak"}
+# Data cleaning
+best_duo <- pbox %>%
+  # filter out the all-star game
+  filter(!team_short_display_name %in% c("Team Durant","Team LeBron")) %>%
+  #filter out the playeroffs 
+  filter(season_type == 2) %>%
+  separate(fg, c("fgm","fga"), "-") %>%
+  group_by(athlete_display_name) %>%
+  # Need an player to play at least 40 games
+  filter(n() > 40) %>%
+  summarise(Points.per.Game = sum(pts)/n(),
+            Team_Name = max(team_name)) %>%
+  group_by(Team_Name) %>%
+  # Get the top 2 scorer in each team
+  slice_max(order_by = Points.per.Game,n=2) %>%
+  group_by(Team_Name) %>%
+  # Identify the first and second in Duo
+  summarise(Combined_ppg = round(sum(Points.per.Game),1),
+            Player_1 = athlete_display_name[which.max(Points.per.Game)],
+            Player_1_ppg = round(max(Points.per.Game),1),
+            Player_2 = athlete_display_name[which.min(Points.per.Game)],
+            Player_2_ppg = round(min(Points.per.Game),1)) %>%
+  arrange(desc(Combined_ppg))
+
+# Create the Huxtable
+duo_tb <- hux(best_duo) %>%
+  set_bold(1,everywhere) %>%
+  set_bottom_border(1,everywhere, brdr(1, "double")) %>%
+  set_right_border(everywhere, 1, brdr(1, "double")) %>%
+  set_background_color(evens, everywhere, "grey95") %>%
+  map_text_color(-1, c(2,4,6), 
+                 by_colorspace("blue", "grey50", "red", colwise = TRUE)
+                 )
+font_size(duo_tb)  <-  15
+height(duo_tb) <- 1
+huxtable::width(duo_tb) <- 1
+add_footnote(duo_tb, "*ppg - Points per Game")
+```
+
+The table is built using Huxtable, ordered by the **combined ppg** for each teams' scoring duo. The numeric columns are color coded, where red is the highest and blue is the lowest in the column. The ideal range of values in a table is 6-40, however, I believe in this case the number of value is acceptable since the table functions as a stats sheet. 
+
+
+
+
+
+
